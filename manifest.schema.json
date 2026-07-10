@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://llmprof/plugins/manifest.schema.json",
+  "title": "LLMProf Plugin Manifest",
+  "description": "Schema for the manifest.json file that describes a LLMProf WASM plugin.",
+  "type": "object",
+  "required": [
+    "name",
+    "version",
+    "pluginApiVersionRequirement",
+    "author",
+    "capabilities"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Unique plugin identifier (kebab-case recommended).",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version string (e.g. 1.0.0).",
+      "minLength": 1
+    },
+    "pluginApiVersionRequirement": {
+      "type": "string",
+      "description": "SemVer requirement for the host plugin API version (e.g. ^1.0.0).",
+      "minLength": 1
+    },
+    "author": {
+      "type": "string",
+      "description": "Author name or organization.",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the plugin."
+    },
+    "changelog": {
+      "type": "string",
+      "description": "Changelog or release notes for this version."
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "Capabilities exposed by this plugin.",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "execute", "execution_timeout_ms"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique capability identifier within the plugin.",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": ["tool", "command"],
+            "description": "Capability type: tool (LLM function calling) or command (UI action)."
+          },
+          "execute": {
+            "type": "string",
+            "description": "Name of the exported WASM function to call when this capability is invoked."
+          },
+          "execution_timeout_ms": {
+            "type": "integer",
+            "description": "Maximum execution time in milliseconds. Must not exceed 30000 (MAX_EXECUTION_MS).",
+            "minimum": 1,
+            "maximum": 30000
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "host_capabilities": {
+      "type": "array",
+      "description": "Host capabilities this plugin needs to call.",
+      "items": {
+        "type": "object",
+        "required": ["id", "execution_timeout_ms"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "add_message_activity",
+              "request_system_model",
+              "request_user_i18n"
+            ],
+            "description": "Host capability identifier."
+          },
+          "execution_timeout_ms": {
+            "type": "integer",
+            "description": "Maximum execution time in milliseconds for the host capability call.",
+            "minimum": 1,
+            "maximum": 30000
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "configuration_schema": {
+      "type": "object",
+      "description": "JSON Schema describing the plugin's configuration options. Users provide configuration matching this schema when installing the plugin."
+    },
+    "allowed_hosts": {
+      "type": "array",
+      "description": "List of hostnames the plugin is allowed to make outbound HTTP requests to (if network access is granted).",
+      "items": {
+        "type": "string"
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "description": "Lifecycle hooks for install, upgrade, and uninstall operations.",
+      "properties": {
+        "on_install": {
+          "type": "string",
+          "description": "Name of the exported WASM function called on first install."
+        },
+        "on_before_upgrade": {
+          "type": "string",
+          "description": "Name of the exported WASM function called before an upgrade. Receives the old version."
+        },
+        "on_after_upgrade": {
+          "type": "string",
+          "description": "Name of the exported WASM function called after an upgrade. Receives the old and new versions."
+        },
+        "on_uninstall": {
+          "type": "string",
+          "description": "Name of the exported WASM function called on uninstall. Use for cleanup."
+        }
+      },
+      "additionalProperties": false
+    },
+    "memory": {
+      "type": "object",
+      "description": "Memory configuration for the plugin's WASM instance.",
+      "properties": {
+        "max_pages": {
+          "type": "integer",
+          "description": "Maximum number of 64 KB memory pages the plugin can allocate.",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "preview_images": {
+      "type": "array",
+      "description": "Paths or URLs to preview images shown in the plugin catalog.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

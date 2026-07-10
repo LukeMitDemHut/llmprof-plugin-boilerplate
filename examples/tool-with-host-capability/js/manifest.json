@@ -1,0 +1,31 @@
+{
+  "name": "tool-with-host-capability",
+  "version": "0.1.0",
+  "pluginApiVersionRequirement": ">=1.0.0",
+  "author": "LLMProf",
+  "description": "Example tool plugin that calls request_system_model, saves to /storage, and reports progress via add_message_activity.",
+  "capabilities": [
+    {
+      "id": "summarize",
+      "type": "tool",
+      "execute": "summarize",
+      "execution_timeout_ms": 10000
+    }
+  ],
+  "host_capabilities": [
+    {
+      "id": "add_message_activity",
+      "execution_timeout_ms": 5000
+    },
+    {
+      "id": "request_system_model",
+      "execution_timeout_ms": 10000
+    },
+    {
+      "id": "log",
+      "execution_timeout_ms": 3000
+    }
+  ],
+  "configuration_schema": {},
+  "allowed_hosts": []
+}

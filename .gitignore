@@ -1,0 +1,18 @@
+# Build outputs
+*.wasm
+go/plugin.wasm
+rust/plugin.wasm
+js/plugin.wasm
+
+# Node
+node_modules/
+dist/
+
+# Rust
+target/
+
+# Environment
+.env
+
+# OS
+.DS_Store

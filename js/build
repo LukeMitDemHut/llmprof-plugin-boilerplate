@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Build the JS builder image (cached after first run)
+docker build -t llmprof-js-builder -f- "$SCRIPT_DIR" <<'DOCKERFILE'
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates sudo && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    apt-get install -y --no-install-recommends build-essential git && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN curl -s https://get.extism.org/cli | sh -s -- -y
+ENV PATH="/usr/local/bin:${PATH}"
+WORKDIR /tmp
+RUN curl -O https://raw.githubusercontent.com/extism/js-pdk/main/install.sh && \
+    bash install.sh && rm install.sh
+WORKDIR /workspace
+DOCKERFILE
+
+# Run the build
+docker run --rm -v "$SCRIPT_DIR":/workspace -w /workspace llmprof-js-builder sh -c 'npm install && node esbuild.js && extism-js dist/index.js -i src/index.d.ts -o plugin.wasm'
+echo "Built: $SCRIPT_DIR/plugin.wasm"

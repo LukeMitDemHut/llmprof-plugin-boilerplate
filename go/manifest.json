@@ -1,0 +1,23 @@
+{
+  "name": "boilerplate-go",
+  "version": "0.1.0",
+  "pluginApiVersionRequirement": ">=1.0.0",
+  "author": "Your Name",
+  "description": "A Go plugin template for LLMProf.",
+  "capabilities": [
+    {
+      "id": "run",
+      "type": "command",
+      "execute": "run",
+      "execution_timeout_ms": 5000
+    }
+  ],
+  "host_capabilities": [
+    {
+      "id": "log",
+      "execution_timeout_ms": 3000
+    }
+  ],
+  "configuration_schema": {},
+  "allowed_hosts": []
+}

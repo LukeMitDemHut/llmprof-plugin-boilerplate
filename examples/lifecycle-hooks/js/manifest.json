@@ -1,0 +1,22 @@
+{
+  "name": "lifecycle-hooks",
+  "version": "1.0.0",
+  "pluginApiVersionRequirement": ">=1.0.0",
+  "author": "LLMProf",
+  "description": "Demonstrates all 4 lifecycle hooks (on_install, on_before_upgrade, on_after_upgrade, on_uninstall) by appending timestamped entries to /storage/lifecycle.log",
+  "capabilities": [
+    {
+      "id": "ping",
+      "type": "tool",
+      "execute": "ping",
+      "execution_timeout_ms": 5000
+    }
+  ],
+  "host_capabilities": [],
+  "lifecycle": {
+    "on_install": "on_install",
+    "on_before_upgrade": "on_before_upgrade",
+    "on_after_upgrade": "on_after_upgrade",
+    "on_uninstall": "on_uninstall"
+  }
+}

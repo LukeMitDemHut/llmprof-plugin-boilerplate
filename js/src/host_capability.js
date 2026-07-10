@@ -1,0 +1,110 @@
+/**
+ * host_capability.js
+ *
+ * Helpers for calling LLMProf host capabilities from a JS/WASM plugin.
+ *
+ * The host exposes a single gateway function — `call_host_capability` — in the
+ * `extism:host/user` namespace.  Every higher-level capability (adding message
+ * activities, requesting LLM completions, fetching i18n strings, …) is invoked
+ * by sending a JSON envelope through this gateway:
+ *
+ *   {
+ *     "capability": "<capabilityName>",
+ *     "input": { ...capability-specific payload... }
+ *   }
+ *
+ * The host returns a JSON string that the caller parses.
+ */
+
+/**
+ * Low-level helper: call a host capability and return the raw JSON response
+ * string.
+ *
+ * @param {string} capabilityName - Name of the host capability to invoke.
+ * @param {object} inputObj      - Capability-specific input payload.
+ * @returns {string}             - Raw JSON response string from the host.
+ * @throws {Error} If the host did not provide `call_host_capability`.
+ */
+function callHostCapability(capabilityName, inputObj) {
+  // Obtain the host function table.  In the Extism JS PDK this is the only
+  // way to reach functions declared in the `extism:host` namespace.
+  const { call_host_capability } = Host.getFunctions();
+  if (!call_host_capability) {
+    throw new Error("Host did not provide 'call_host_capability' function.");
+  }
+
+  // Build the JSON envelope expected by the host gateway.
+  const requestPayload = JSON.stringify({
+    capability: capabilityName,
+    input: inputObj,
+  });
+
+  // Allocate a memory block for the request string and remember its offset.
+  const memIn = Memory.fromString(requestPayload);
+
+  // Call the host gateway.  It returns an offset to a memory block containing
+  // the JSON response.
+  const memOutOffset = call_host_capability(memIn.offset);
+
+  // Free the input memory — we are responsible for cleaning up what we
+  // allocated.
+  memIn.free();
+
+  // Wrap the output offset in a Memory object so we can read it.
+  const memOut = Memory.find(memOutOffset);
+  return memOut.readString();
+}
+
+/**
+ * Convenience wrapper: call a host capability and parse the JSON response into
+ * an object.
+ *
+ * @param {string} capabilityName - Name of the host capability to invoke.
+ * @param {object} inputObj      - Capability-specific input payload.
+ * @returns {object}             - Parsed JSON response object.
+ * @throws {Error} If the response cannot be parsed as JSON.
+ */
+function requestCapability(capabilityName, inputObj) {
+  const raw = callHostCapability(capabilityName, inputObj);
+  return JSON.parse(raw);
+}
+
+/**
+ * Send a log entry to the host's `log` host capability.
+ * If the host does not support the `log` capability the call is silently
+ * ignored — logging must never break plugin execution.
+ *
+ * @param {string} level   - Log level: "debug", "info", "warn", "error".
+ * @param {string} message - Log message.
+ */
+function logHost(level, message) {
+  try {
+    requestCapability("log", { level: level, message: message });
+  } catch (e) {
+    // Best-effort: ignore errors from logging.
+  }
+}
+
+/** Convenience wrapper: log at debug level. */
+function logDebug(message) {
+  logHost("debug", message);
+}
+
+/** Convenience wrapper: log at info level. */
+function logInfo(message) {
+  logHost("info", message);
+}
+
+/** Convenience wrapper: log at error level. */
+function logError(message) {
+  logHost("error", message);
+}
+
+module.exports = {
+  callHostCapability,
+  requestCapability,
+  logHost,
+  logDebug,
+  logInfo,
+  logError,
+};

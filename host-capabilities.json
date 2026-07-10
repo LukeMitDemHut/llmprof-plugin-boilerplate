@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://llmprof/plugins/host-capabilities.json",
+  "title": "LLMProf Host Capabilities Reference",
+  "description": "Reference document listing all host capabilities available to plugins via call_host_capability, including their input/output schemas and scope restrictions.",
+  "capabilities": {
+    "add_message_activity": {
+      "description": "Add one or more activity entries to a message's activity log. Activities are visible in the UI and via the message activity API.",
+      "scopes": ["context", "surface", "personal"],
+      "scope_restrictions": "The plugin must be installed in a scope that has access to the target message. The host validates that the message belongs to a context/surface the plugin is associated with.",
+      "input": {
+        "type": "object",
+        "required": ["messageActivityKey", "activity"],
+        "properties": {
+          "messageActivityKey": {
+            "type": "string",
+            "description": "Opaque key provided by the host when the capability is invoked. Identifies the target message. Must be passed through unmodified — do not construct or guess this value."
+          },
+          "activity": {
+            "type": "object",
+            "description": "A single activity entry to add.",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "Activity type (e.g. tool_call, search_result, status_update, info, error)."
+              },
+              "title": {
+                "type": "string",
+                "description": "Short human-readable title for the activity."
+              },
+              "detail": {
+                "type": "string",
+                "description": "Longer description or detail payload."
+              },
+              "data": {
+                "type": "object",
+                "description": "Structured data associated with the activity."
+              }
+            }
+          },
+          "activities": {
+            "type": "array",
+            "description": "Multiple activity entries to add (alternative to 'activity').",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                },
+                "data": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the activity entries were successfully added."
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of activity entries added."
+          }
+        }
+      }
+    },
+    "request_system_model": {
+      "description": "Request an LLM completion from the system-configured model. The host manages the model selection, API keys, and rate limiting.",
+      "scopes": ["context", "surface"],
+      "scope_restrictions": "Only available to plugins installed in a context or surface scope. Personal-scope plugins cannot call this capability. The host enforces token and rate limits.",
+      "input": {
+        "type": "object",
+        "required": ["request"],
+        "properties": {
+          "request": {
+            "type": "object",
+            "description": "OpenAI-compatible chat completion request.",
+            "properties": {
+              "model": {
+                "type": "string",
+                "description": "Optional model override. If omitted, the system default is used."
+              },
+              "messages": {
+                "type": "array",
+                "description": "Array of message objects with role and content.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "enum": ["system", "user", "assistant", "tool"]
+                    },
+                    "content": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "temperature": {
+                "type": "number"
+              },
+              "max_tokens": {
+                "type": "integer"
+              }
+            }
+          },
+          "messages": {
+            "type": "array",
+            "description": "Alternative to request.messages: top-level messages array.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "schema": {
+            "type": "object",
+            "description": "Optional JSON Schema for structured output. If provided, the host requests a structured response."
+          },
+          "tool_definitions": {
+            "type": "array",
+            "description": "Optional tool definitions for function calling. The host will pass these to the model.",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "object",
+            "description": "The model completion result, including content, tool calls, and usage metadata."
+          }
+        }
+      }
+    },
+    "request_user_i18n": {
+      "description": "Request the current user's locale/i18n preference. Useful for localizing plugin output.",
+      "scopes": ["context", "surface", "personal"],
+      "scope_restrictions": "Available in all scopes. Returns null if the user has no locale preference set or if the request is made outside a user context.",
+      "input": {
+        "type": "object",
+        "description": "Empty object — no input parameters required.",
+        "properties": {}
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": ["string", "null"],
+            "description": "The user's locale string (e.g. 'en', 'de', 'fr') or null if not set."
+          }
+        }
+      }
+    }
+  }
+}
