@@ -1,0 +1,13 @@
+{
+  "name": "my-plugin",
+  "version": "0.1.0",
+  "description": "A JS plugin template for LLMProf.",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "node esbuild.js && extism-js dist/index.js -i src/index.d.ts -o plugin.wasm"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.19.6"
+  }
+}

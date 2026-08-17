@@ -1,0 +1,26 @@
+{
+  "name": "requesting-external-data",
+  "version": "1.0.0",
+  "pluginApiVersionRequirement": ">=1.0.0",
+  "author": "LLMProf",
+  "description": "Demonstrates outbound HTTP requests during the on_install lifecycle hook. Fetches https://llm-prof.de/ and stores the HTTP status and a snippet of the response body in /storage/fetch-result.json.",
+  "capabilities": [
+    {
+      "id": "ping",
+      "type": "tool",
+      "execute": "ping",
+      "execution_timeout_ms": 5000
+    }
+  ],
+  "host_capabilities": [
+    {
+      "id": "log",
+      "execution_timeout_ms": 3000
+    }
+  ],
+  "allowed_hosts": ["llm-prof.de"],
+  "lifecycle": {
+    "on_install": "on_install",
+    "on_uninstall": "on_uninstall"
+  }
+}
