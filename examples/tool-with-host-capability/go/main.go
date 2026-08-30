@@ -91,16 +91,24 @@ func requestCapability(capabilityName string, inputObj any) string {
 func Summarize() int32 {
 	logInfo("summarize entry point called")
 
-	// --- 1. Read input from the host ---------------------------------------
+	// --- 1. Read input and plugin config from the host --------------------
+	//
+	// The host sends a JSON envelope:
+	//   {"input": {...}, "plugin_config": {...}}
 	inputBytes := pdk.Input()
 	logDebug(fmt.Sprintf("input size: %d bytes", len(inputBytes)))
 
-	var inputData map[string]any
-	if err := json.Unmarshal(inputBytes, &inputData); err != nil {
+	var envelope struct {
+		Input        map[string]any `json:"input"`
+		PluginConfig map[string]any `json:"plugin_config"`
+	}
+	if err := json.Unmarshal(inputBytes, &envelope); err != nil {
 		logError(fmt.Sprintf("failed to parse input JSON: %v", err))
 		pdk.SetError(errors.New("invalid JSON input from host"))
 		return 1
 	}
+
+	inputData := envelope.Input
 
 	// Log the raw input keys for debugging (without values to avoid leaking secrets)
 	inputKeys := make([]string, 0, len(inputData))
@@ -138,11 +146,6 @@ func handleDefine() int32 {
 				"query": map[string]any{
 					"type":        "string",
 					"description": "The text to summarise.",
-				},
-				"messageActivityKey": map[string]any{
-					"type":             "string",
-					"description":       "Opaque key injected by the host to append message activities.",
-					"x-system-provided": true,
 				},
 			},
 			"required": []string{"query"},
@@ -183,13 +186,6 @@ func handleExecute(inputData map[string]any) int32 {
 
 	query, _ := args["query"].(string)
 	logDebug(fmt.Sprintf("handleExecute: query length: %d", len(query)))
-
-	messageActivityKey, _ := args["messageActivityKey"].(string)
-	if messageActivityKey == "" {
-		logInfo("handleExecute: messageActivityKey is empty or missing from arguments")
-	} else {
-		logDebug(fmt.Sprintf("handleExecute: messageActivityKey present (length: %d)", len(messageActivityKey)))
-	}
 
 	// --- 1. Request a summary from the system LLM model --------------------
 	logInfo("handleExecute: calling request_system_model")
@@ -239,22 +235,17 @@ func handleExecute(inputData map[string]any) int32 {
 	}
 	logDebug(fmt.Sprintf("handleExecute: extracted summary length: %d", len(summary)))
 
-	if messageActivityKey != "" {
-		logInfo("handleExecute: calling add_message_activity")
-		activityInput := map[string]any{
-			"messageActivityKey": messageActivityKey,
-			"activity": map[string]any{
-				"title":   "Summary Generated",
-				"content": summary,
-				"origin":  "tool-with-host-capability",
-				"icon":    "FileText",
-			},
-		}
-		activityResponse := requestCapability("add_message_activity", activityInput)
-		logDebug(fmt.Sprintf("handleExecute: add_message_activity response: %s", activityResponse))
-	} else {
-		logInfo("handleExecute: skipping add_message_activity (messageActivityKey not injected)")
+	logInfo("handleExecute: calling add_message_activity")
+	activityInput := map[string]any{
+		"activity": map[string]any{
+			"title":   "Summary Generated",
+			"content": summary,
+			"origin":  "tool-with-host-capability",
+			"icon":    "FileText",
+		},
 	}
+	activityResponse := requestCapability("add_message_activity", activityInput)
+	logDebug(fmt.Sprintf("handleExecute: add_message_activity response: %s", activityResponse))
 
 	// --- 4. Return the tool execute response -------------------------------
 	logInfo("handleExecute: building final result")

@@ -55,8 +55,8 @@
           },
           "type": {
             "type": "string",
-            "enum": ["tool", "command"],
-            "description": "Capability type: tool (LLM function calling) or command (UI action)."
+            "enum": ["tool", "command", "student_support"],
+            "description": "Capability type: tool (LLM function calling), command (UI action), or student_support (learning mode strategy)."
           },
           "execute": {
             "type": "string",

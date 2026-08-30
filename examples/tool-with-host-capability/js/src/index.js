@@ -168,12 +168,6 @@ function defineTool() {
           type: "string",
           description: "The text to summarise.",
         },
-        messageActivityKey: {
-          type: "string",
-          description:
-            "Opaque key injected by the host to append message activities.",
-          "x-system-provided": true,
-        },
       },
       required: ["query"],
     },
@@ -194,24 +188,11 @@ function defineTool() {
 function executeTool(input) {
   logInfo("executeTool: starting");
 
-  // Extract the tool arguments and the message activity key.
+  // Extract the tool arguments.
   var args = input.arguments || {};
   var query = args.query || "";
-  var messageActivityKey = args.messageActivityKey || "";
 
   logDebug("executeTool: query length: " + query.length);
-
-  if (messageActivityKey === "") {
-    logInfo(
-      "executeTool: messageActivityKey is empty or missing from arguments",
-    );
-  } else {
-    logDebug(
-      "executeTool: messageActivityKey present (length: " +
-        messageActivityKey.length +
-        ")",
-    );
-  }
 
   // 1. Request a summary from the system LLM model.
   logInfo("executeTool: calling request_system_model");
@@ -241,25 +222,17 @@ function executeTool(input) {
   }
   logDebug("executeTool: extracted summary length: " + summary.length);
 
-  // 4. Report progress via add_message_activity (only if messageActivityKey
-  //    was injected by the host).
-  if (messageActivityKey !== "") {
-    logInfo("executeTool: calling add_message_activity");
-    var activityResponse = requestCapability("add_message_activity", {
-      messageActivityKey: messageActivityKey,
-      activity: {
-        title: "Summary Generated",
-        content: summary,
-        origin: "tool-with-host-capability",
-        icon: "FileText",
-      },
-    });
-    logDebug("executeTool: add_message_activity response: " + activityResponse);
-  } else {
-    logInfo(
-      "executeTool: skipping add_message_activity (messageActivityKey not injected)",
-    );
-  }
+  // 4. Report progress via add_message_activity.
+  logInfo("executeTool: calling add_message_activity");
+  var activityResponse = requestCapability("add_message_activity", {
+    activity: {
+      title: "Summary Generated",
+      content: summary,
+      origin: "tool-with-host-capability",
+      icon: "FileText",
+    },
+  });
+  logDebug("executeTool: add_message_activity response: " + activityResponse);
 
   // 5. Return the tool execute response.
   logInfo("executeTool: building final result");
@@ -283,9 +256,11 @@ function summarize() {
   try {
     logInfo("summarize entry point called");
 
-    // Read the JSON payload provided by the host.
+    // Read the JSON envelope provided by the host.
+    // The host sends: {"input": {...}, "plugin_config": {...}}
     var inputStr = Host.inputString();
-    var input = JSON.parse(inputStr);
+    var envelope = JSON.parse(inputStr);
+    var input = envelope.input || {};
 
     logDebug("input mode: " + input.mode);
 

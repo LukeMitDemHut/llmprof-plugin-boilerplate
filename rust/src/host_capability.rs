@@ -110,25 +110,49 @@ pub fn request_capability(
 
 /// Add a message activity entry via the host.
 ///
+/// The message is resolved automatically from the execution token's
+/// `message_id` claim — no key or message reference needs to be passed.
+///
 /// # Arguments
 ///
-/// * `message_activity_key` — The key identifying the message to attach
-///   the activity to.
 /// * `activity` — The activity payload as a JSON value.
 ///
 /// # Returns
 ///
 /// The host's JSON response, or an error string.
-pub fn add_message_activity(
-    message_activity_key: &str,
-    activity: Value,
-) -> Result<Value, String> {
+pub fn add_message_activity(activity: Value) -> Result<Value, String> {
     let input = serde_json::json!({
-        "messageActivityKey": message_activity_key,
         "activity": activity,
     });
 
     request_capability("add_message_activity", &input)
+}
+
+/// Resolve the current context for this plugin execution.
+///
+/// The context is derived from the execution token's `message_id` claim
+/// (message → chat → context). Returns the context UUID and name, or `null`
+/// when no message is available.
+///
+/// # Returns
+///
+/// The host's JSON response containing `{"context": {"uuid": "...", "name": "..."}}`,
+/// or `{"context": null}` when no message is available.
+pub fn resolve_context() -> Result<Value, String> {
+    request_capability("resolve_context", &serde_json::json!({}))
+}
+
+/// Resolve the current message for this plugin execution.
+///
+/// The message is identified by the `message_id` claim in the execution token.
+/// Returns the message ID, or `null` when no message is available.
+///
+/// # Returns
+///
+/// The host's JSON response containing `{"message": {"id": 42}}`,
+/// or `{"message": null}` when no message is available.
+pub fn resolve_message() -> Result<Value, String> {
+    request_capability("resolve_message", &serde_json::json!({}))
 }
 
 /// Request a completion from the system LLM model.

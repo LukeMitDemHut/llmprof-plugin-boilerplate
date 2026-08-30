@@ -5,38 +5,49 @@
   "description": "Reference document listing all host capabilities available to plugins via call_host_capability, including their input/output schemas and scope restrictions.",
   "capabilities": {
     "add_message_activity": {
-      "description": "Add one or more activity entries to a message's activity log. Activities are visible in the UI and via the message activity API.",
-      "scopes": ["context", "surface", "personal"],
+      "description": "Add one or more activity entries to a message's activity log. Activities are visible in the UI and via the message activity API. The message is resolved automatically from the execution token's message_id claim — no key or message reference needs to be passed.",
+      "scopes": ["context", "surface"],
       "scope_restrictions": "The plugin must be installed in a scope that has access to the target message. The host validates that the message belongs to a context/surface the plugin is associated with.",
       "input": {
         "type": "object",
-        "required": ["messageActivityKey", "activity"],
         "properties": {
-          "messageActivityKey": {
-            "type": "string",
-            "description": "Opaque key provided by the host when the capability is invoked. Identifies the target message. Must be passed through unmodified — do not construct or guess this value."
-          },
           "activity": {
             "type": "object",
             "description": "A single activity entry to add.",
             "properties": {
-              "type": {
-                "type": "string",
-                "description": "Activity type (e.g. tool_call, search_result, status_update, info, error)."
-              },
               "title": {
                 "type": "string",
                 "description": "Short human-readable title for the activity."
               },
-              "detail": {
+              "content": {
                 "type": "string",
-                "description": "Longer description or detail payload."
+                "description": "Body text of the activity."
               },
-              "data": {
-                "type": "object",
-                "description": "Structured data associated with the activity."
+              "origin": {
+                "type": "string",
+                "description": "Plugin name or label shown as card source."
+              },
+              "icon": {
+                "type": "string",
+                "description": "Icon name (e.g. Books, MagnifyingGlass, Info). Defaults to Info."
+              },
+              "details": {
+                "type": "array",
+                "description": "Additional expandable detail rows.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "detailTitle": { "type": "string" },
+                    "detailContent": { "type": "string" }
+                  }
+                }
+              },
+              "phase": {
+                "type": "string",
+                "description": "Optional phase label for grouping activities."
               }
-            }
+            },
+            "required": ["title", "content", "origin"]
           },
           "activities": {
             "type": "array",
@@ -44,18 +55,12 @@
             "items": {
               "type": "object",
               "properties": {
-                "type": {
-                  "type": "string"
-                },
-                "title": {
-                  "type": "string"
-                },
-                "detail": {
-                  "type": "string"
-                },
-                "data": {
-                  "type": "object"
-                }
+                "title": { "type": "string" },
+                "content": { "type": "string" },
+                "origin": { "type": "string" },
+                "icon": { "type": "string" },
+                "details": { "type": "array" },
+                "phase": { "type": "string" }
               }
             }
           }
@@ -71,6 +76,45 @@
           "count": {
             "type": "integer",
             "description": "Number of activity entries added."
+          }
+        }
+      }
+    },
+    "resolve_context": {
+      "description": "Resolve the current context for this plugin execution. The context is derived from the execution token's message_id claim (message → chat → context). Returns the context UUID and name, or null when no message is available.",
+      "scopes": ["context", "surface"],
+      "input": {
+        "type": "object",
+        "properties": {}
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "context": {
+            "type": ["object", "null"],
+            "properties": {
+              "uuid": { "type": "string" },
+              "name": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "resolve_message": {
+      "description": "Resolve the current message for this plugin execution. The message is identified by the message_id claim in the execution token. Returns the message ID, or null when no message is available.",
+      "scopes": ["context", "surface"],
+      "input": {
+        "type": "object",
+        "properties": {}
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": ["object", "null"],
+            "properties": {
+              "id": { "type": "integer" }
+            }
           }
         }
       }

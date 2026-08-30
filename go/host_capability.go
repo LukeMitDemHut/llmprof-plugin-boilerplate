@@ -82,22 +82,39 @@ func RequestCapabilityJSON(capabilityName string, inputObj any) (map[string]any,
 
 // AddMessageActivity calls the `add_message_activity` host capability.
 //
-// messageActivityKey identifies the message this activity belongs to (provided
-// by the host in the tool input under the key "messageActivityKey").
+// The message is resolved automatically from the execution token's
+// `message_id` claim — no key or message reference needs to be passed.
 //
 // activity is the activity payload, e.g.:
 //
 //	{
-//	    "type": "tool_call",
-//	    "label": "Searching documents",
-//	    "status": "completed"
+//	    "title": "Search Results",
+//	    "content": "Found 3 results",
+//	    "origin": "my-plugin",
+//	    "icon": "Books"
 //	}
-func AddMessageActivity(messageActivityKey string, activity map[string]any) (map[string]any, error) {
+func AddMessageActivity(activity map[string]any) (map[string]any, error) {
 	input := map[string]any{
-		"messageActivityKey": messageActivityKey,
-		"activity":           activity,
+		"activity": activity,
 	}
 	return RequestCapabilityJSON("add_message_activity", input)
+}
+
+// ResolveContext calls the `resolve_context` host capability.
+//
+// The context is derived from the execution token's `message_id` claim
+// (message → chat → context). Returns the context UUID and name, or nil
+// when no message is available.
+func ResolveContext() (map[string]any, error) {
+	return RequestCapabilityJSON("resolve_context", nil)
+}
+
+// ResolveMessage calls the `resolve_message` host capability.
+//
+// The message is identified by the `message_id` claim in the execution token.
+// Returns the message ID, or nil when no message is available.
+func ResolveMessage() (map[string]any, error) {
+	return RequestCapabilityJSON("resolve_message", nil)
 }
 
 // RequestSystemModel calls the `request_system_model` host capability to ask

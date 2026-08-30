@@ -116,7 +116,8 @@ function on_uninstall() {
 function ping() {
   try {
     var inputStr = Host.inputString();
-    var data = JSON.parse(inputStr || "{}");
+    var envelope = JSON.parse(inputStr || "{}");
+    var data = envelope.input || envelope;
     var mode = data.mode || "";
 
     if (mode === "define") {

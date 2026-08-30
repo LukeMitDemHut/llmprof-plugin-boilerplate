@@ -7,23 +7,22 @@
 //!    the native WASI filesystem (`std::fs`), and sends an
 //!    `add_message_activity` card to report progress.
 //!
-//! The host invokes the exported `summarize` function with a JSON payload that
-//! includes a "mode" field ("define" or "execute").
+//! The host invokes the exported `summarize` function with a JSON envelope
+//! that includes "input" and "plugin_config" as separate top-level keys.
 //!
 //! # Input JSON structure
 //!
 //! ```json
-//! { "mode": "define" }
+//! { "input": {"mode": "define"}, "plugin_config": {} }
 //! ```
 //!
 //! ```json
 //! {
-//!   "mode": "execute",
-//!   "arguments": {
-//!     "query": "...",
-//!     "messageActivityKey": "abc-123"
+//!   "input": {
+//!     "mode": "execute",
+//!     "arguments": { "query": "..." }
 //!   },
-//!   "config": {}
+//!   "plugin_config": {}
 //! }
 //! ```
 
@@ -112,14 +111,19 @@ fn log_error(message: &str) {
 
 /// Main plugin entry point, exported via the `#[plugin_fn]` macro.
 ///
-/// The host passes a JSON object (wrapped in `Json<serde_json::Value>`) and
-/// expects a JSON string in return. Errors are reported back to the host with
-/// a non-zero exit code via `WithReturnCode`.
+/// The host passes a JSON envelope `{"input": {...}, "plugin_config": {...}}`
+/// and expects a JSON string in return. Errors are reported back to the host
+/// with a non-zero exit code via `WithReturnCode`.
 #[plugin_fn]
-pub fn summarize(input: Json<Value>) -> FnResult<String> {
+pub fn summarize(envelope: Json<Value>) -> FnResult<String> {
     log_info("summarize entry point called");
 
-    let input_value = input.0;
+    // Unwrap the "input" field from the host envelope.
+    let input_value = envelope
+        .0
+        .get("input")
+        .cloned()
+        .unwrap_or(Value::Null);
 
     // Determine the mode: "define" or "execute".
     let mode = input_value
@@ -146,11 +150,6 @@ pub fn summarize(input: Json<Value>) -> FnResult<String> {
                         "query": {
                             "type": "string",
                             "description": "The text to summarise."
-                        },
-                        "messageActivityKey": {
-                            "type": "string",
-                            "description": "Opaque key injected by the host to append message activities.",
-                            "x-system-provided": true
                         }
                     },
                     "required": ["query"]
@@ -183,22 +182,6 @@ pub fn summarize(input: Json<Value>) -> FnResult<String> {
                 .unwrap_or("");
 
             log_debug(&format!("handleExecute: query length: {}", query.len()));
-
-            // Extract the message activity key from arguments (injected by
-            // the host, not by the LLM).
-            let message_activity_key = args
-                .get("messageActivityKey")
-                .and_then(|k| k.as_str())
-                .unwrap_or("");
-
-            if message_activity_key.is_empty() {
-                log_info("handleExecute: messageActivityKey is empty or missing from arguments");
-            } else {
-                log_debug(&format!(
-                    "handleExecute: messageActivityKey present (length: {})",
-                    message_activity_key.len()
-                ));
-            }
 
             // 1. Request a summary from the system LLM model.
             log_info("handleExecute: calling request_system_model");
@@ -247,26 +230,20 @@ pub fn summarize(input: Json<Value>) -> FnResult<String> {
                 summary.len()
             ));
 
-            // 4. Report progress via add_message_activity (only if
-            //    messageActivityKey was injected by the host).
-            if !message_activity_key.is_empty() {
-                log_info("handleExecute: calling add_message_activity");
-                let activity_input = serde_json::json!({
-                    "messageActivityKey": message_activity_key,
-                    "activity": {
-                        "title": "Summary Generated",
-                        "content": summary,
-                        "origin": "tool-with-host-capability",
-                        "icon": "FileText"
-                    }
-                });
+            // 4. Report progress via add_message_activity.
+            log_info("handleExecute: calling add_message_activity");
+            let activity_input = serde_json::json!({
+                "activity": {
+                    "title": "Summary Generated",
+                    "content": summary,
+                    "origin": "tool-with-host-capability",
+                    "icon": "FileText"
+                }
+            });
 
-                // Best-effort: report the activity but don't fail the tool if
-                // the host rejects it.
-                let _ = request_capability("add_message_activity", &activity_input);
-            } else {
-                log_info("handleExecute: skipping add_message_activity (messageActivityKey not injected)");
-            }
+            // Best-effort: report the activity but don't fail the tool if
+            // the host rejects it.
+            let _ = request_capability("add_message_activity", &activity_input);
 
             // 5. Return the tool execute response.
             log_info("handleExecute: building final result");

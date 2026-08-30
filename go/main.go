@@ -13,7 +13,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 
@@ -80,6 +79,60 @@ func logError(message string) {
 }
 
 // ---------------------------------------------------------------------------
+// Input / plugin config helpers
+// ---------------------------------------------------------------------------
+
+// readHostEnvelope reads the raw host input and parses the
+// {"input": {...}, "plugin_config": {...}} envelope once, returning both
+// values. This avoids calling pdk.Input() multiple times.
+func readHostEnvelope() (inputData map[string]any, pluginConfig map[string]any) {
+	inputBytes := pdk.Input()
+	var envelope struct {
+		Input        map[string]any `json:"input"`
+		PluginConfig map[string]any `json:"plugin_config"`
+	}
+	if err := json.Unmarshal(inputBytes, &envelope); err != nil {
+		logError(fmt.Sprintf("readHostEnvelope: failed to parse input JSON: %v", err))
+		return map[string]any{}, map[string]any{}
+	}
+	if envelope.Input == nil {
+		envelope.Input = map[string]any{}
+	}
+	if envelope.PluginConfig == nil {
+		envelope.PluginConfig = map[string]any{}
+	}
+	return envelope.Input, envelope.PluginConfig
+}
+
+// getInput reads the raw host input, unwraps the "input" key from the
+// {"input": {...}, "plugin_config": {...}} envelope, and returns it as a
+// map[string]any. Returns an empty map on parse failure.
+//
+// Note: this calls pdk.Input() internally. If you need both input and
+// plugin_config, use readHostEnvelope() instead to avoid reading the input
+// buffer twice.
+func getInput() map[string]any {
+	input, _ := readHostEnvelope()
+	return input
+}
+
+// getPluginConfig reads the raw host input, unwraps the "plugin_config" key
+// from the {"input": {...}, "plugin_config": {...}} envelope, and returns it
+// as a map[string]any. Returns an empty map on parse failure or when no config
+// is set.
+//
+// plugin_config contains the installation's configuration values as defined
+// by the plugin's configuration_schema in manifest.json.
+//
+// Note: this calls pdk.Input() internally. If you need both input and
+// plugin_config, use readHostEnvelope() instead to avoid reading the input
+// buffer twice.
+func getPluginConfig() map[string]any {
+	_, config := readHostEnvelope()
+	return config
+}
+
+// ---------------------------------------------------------------------------
 // Storage helpers
 // ---------------------------------------------------------------------------
 
@@ -120,16 +173,18 @@ func storageRead(filename string) ([]byte, error) {
 func run() int32 {
 	logInfo("run: entry point called")
 
-	// --- 1. Read input from the host ---------------------------------------
-	inputBytes := pdk.Input()
-	logDebug(fmt.Sprintf("run: input size: %d bytes", len(inputBytes)))
+	// --- 1. Read input and plugin config from the host ---------------------
+	//
+	// The host sends a JSON envelope:
+	//   {"input": {...}, "plugin_config": {...}}
+	//
+	// readHostEnvelope() unwraps both fields in a single parse.
+	// getInput() unwraps just "input"; getPluginConfig() unwraps just
+	// "plugin_config" (the installation's configuration values, kept
+	// separate from input).
+	inputData, pluginConfig := readHostEnvelope()
 
-	var inputData map[string]any
-	if err := json.Unmarshal(inputBytes, &inputData); err != nil {
-		logError(fmt.Sprintf("run: failed to parse input JSON: %v", err))
-		pdk.SetError(errors.New("invalid JSON input from host"))
-		return 1
-	}
+	logDebug(fmt.Sprintf("run: input keys: %d, plugin_config keys: %d", len(inputData), len(pluginConfig)))
 
 	// --- 2. Your plugin logic goes here ------------------------------------
 	//
@@ -138,6 +193,10 @@ func run() int32 {
 	//   tool (execute mode):  {"mode": "execute", "arguments": {...}}
 	//   tool (define mode):   {"mode": "define"}
 	//   command:              {"param": "value", ...}  (open object)
+	//   student_support:       {"locale": "en"}
+	//
+	// pluginConfig contains the installation's configuration values as
+	// defined by the plugin's configuration_schema in manifest.json.
 
 	// --- 3. Send output back to the host ----------------------------------
 	result := map[string]any{

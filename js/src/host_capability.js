@@ -100,9 +100,53 @@ function logError(message) {
   logHost("error", message);
 }
 
+/**
+ * Add a message activity entry via the `add_message_activity` host capability.
+ *
+ * The message is resolved automatically from the execution token's
+ * `message_id` claim — no key or message reference needs to be passed.
+ *
+ * @param {object} activity - The activity payload.
+ * @returns {object}        - The host's JSON response.
+ */
+function addMessageActivity(activity) {
+  return requestCapability("add_message_activity", { activity: activity });
+}
+
+/**
+ * Resolve the current context for this plugin execution.
+ *
+ * The context is derived from the execution token's `message_id` claim
+ * (message → chat → context). Returns the context UUID and name, or `null`
+ * when no message is available.
+ *
+ * @returns {object} The host's JSON response containing
+ *                   `{context: {uuid: "...", name: "..."}}` or
+ *                   `{context: null}`.
+ */
+function resolveContext() {
+  return requestCapability("resolve_context", {});
+}
+
+/**
+ * Resolve the current message for this plugin execution.
+ *
+ * The message is identified by the `message_id` claim in the execution token.
+ * Returns the message ID, or `null` when no message is available.
+ *
+ * @returns {object} The host's JSON response containing
+ *                   `{message: {id: 42}}` or `{message: null}`.
+ */
+function resolveMessage() {
+  return requestCapability("resolve_message", {});
+}
+
 module.exports = {
   callHostCapability,
   requestCapability,
+  addMessageActivity,
+  resolveContext,
+  resolveMessage,
   logHost,
   logDebug,
   logInfo,
