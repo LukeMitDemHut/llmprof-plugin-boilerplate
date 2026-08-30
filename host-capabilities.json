@@ -4,6 +4,37 @@
   "title": "LLMProf Host Capabilities Reference",
   "description": "Reference document listing all host capabilities available to plugins via call_host_capability, including their input/output schemas and scope restrictions.",
   "capabilities": {
+    "log": {
+      "description": "Write a log entry to the LLMProf application log. Best-effort: the host ignores failures so logging never breaks plugin execution.",
+      "scopes": ["context", "surface", "personal"],
+      "scope_restrictions": "Available in all scopes.",
+      "input": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "level": {
+            "type": "string",
+            "description": "Log level (case-insensitive): debug, info, notice, warning, error. Defaults to info."
+          },
+          "message": {
+            "type": "string",
+            "description": "The log message. Do not log secrets — entries go to the application log."
+          },
+          "context": {
+            "type": "object",
+            "description": "Optional structured context object persisted alongside the log entry."
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
     "add_message_activity": {
       "description": "Add one or more activity entries to a message's activity log. Activities are visible in the UI and via the message activity API. The message is resolved automatically from the execution token's message_id claim — no key or message reference needs to be passed.",
       "scopes": ["context", "surface"],
@@ -125,43 +156,14 @@
       "scope_restrictions": "Only available to plugins installed in a context or surface scope. Personal-scope plugins cannot call this capability. The host enforces token and rate limits.",
       "input": {
         "type": "object",
-        "required": ["request"],
         "properties": {
           "request": {
-            "type": "object",
-            "description": "OpenAI-compatible chat completion request.",
-            "properties": {
-              "model": {
-                "type": "string",
-                "description": "Optional model override. If omitted, the system default is used."
-              },
-              "messages": {
-                "type": "array",
-                "description": "Array of message objects with role and content.",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "role": {
-                      "type": "string",
-                      "enum": ["system", "user", "assistant", "tool"]
-                    },
-                    "content": {
-                      "type": "string"
-                    }
-                  }
-                }
-              },
-              "temperature": {
-                "type": "number"
-              },
-              "max_tokens": {
-                "type": "integer"
-              }
-            }
+            "type": "string",
+            "description": "Plain-text prompt string. The host builds the messages array internally (as a user message). Use the top-level 'messages' array instead if you need multi-turn control."
           },
           "messages": {
             "type": "array",
-            "description": "Alternative to request.messages: top-level messages array.",
+            "description": "Alternative to request: full message array for multi-turn control.",
             "items": {
               "type": "object",
               "properties": {
@@ -176,7 +178,7 @@
           },
           "schema": {
             "type": "object",
-            "description": "Optional JSON Schema for structured output. If provided, the host requests a structured response."
+            "description": "Optional JSON Schema for structured output. If provided, the host requests a structured response. (Also accepted as 'response_schema'.)"
           },
           "tool_definitions": {
             "type": "array",

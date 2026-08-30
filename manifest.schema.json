@@ -82,9 +82,12 @@
           "id": {
             "type": "string",
             "enum": [
+              "log",
               "add_message_activity",
               "request_system_model",
-              "request_user_i18n"
+              "request_user_i18n",
+              "resolve_context",
+              "resolve_message"
             ],
             "description": "Host capability identifier."
           },

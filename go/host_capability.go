@@ -106,7 +106,7 @@ func AddMessageActivity(activity map[string]any) (map[string]any, error) {
 // (message → chat → context). Returns the context UUID and name, or nil
 // when no message is available.
 func ResolveContext() (map[string]any, error) {
-	return RequestCapabilityJSON("resolve_context", nil)
+	return RequestCapabilityJSON("resolve_context", map[string]any{})
 }
 
 // ResolveMessage calls the `resolve_message` host capability.
@@ -114,7 +114,7 @@ func ResolveContext() (map[string]any, error) {
 // The message is identified by the `message_id` claim in the execution token.
 // Returns the message ID, or nil when no message is available.
 func ResolveMessage() (map[string]any, error) {
-	return RequestCapabilityJSON("resolve_message", nil)
+	return RequestCapabilityJSON("resolve_message", map[string]any{})
 }
 
 // RequestSystemModel calls the `request_system_model` host capability to ask
