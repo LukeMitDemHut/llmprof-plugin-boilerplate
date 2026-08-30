@@ -33,13 +33,31 @@
       "description": "Author name or organization.",
       "minLength": 1
     },
+    "display_name": {
+      "type": "object",
+      "description": "Localized user-facing plugin name (locale primary subtag -> text, e.g. {\"en\": \"Quiz Generator\", \"de\": \"Quiz-Generator\"}). 1-10 entries, each value 1-500 chars. Include at least an 'en' entry.",
+      "minProperties": 1,
+      "maxProperties": 10,
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
     "description": {
-      "type": "string",
-      "description": "Human-readable description of the plugin."
+      "type": "object",
+      "description": "Localized user-facing description (locale primary subtag -> text). Same rules as display_name. The host resolves the entry matching the user's locale (exact -> primary subtag -> en -> alphabetically first).",
+      "minProperties": 1,
+      "maxProperties": 10,
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
     },
     "changelog": {
       "type": "string",
-      "description": "Changelog or release notes for this version."
+      "description": "Optional changelog or release notes for this version. Omit (or send an empty string) when there is nothing worth communicating — the host hides the section instead of rendering placeholder text."
     },
     "capabilities": {
       "type": "array",

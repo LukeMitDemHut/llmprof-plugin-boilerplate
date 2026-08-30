@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "pluginApiVersionRequirement": ">=1.0.0",
   "author": "LLMProf",
-  "description": "Demonstrates outbound HTTP requests during the on_install lifecycle hook. Fetches https://llm-prof.de/ and stores the HTTP status and a snippet of the response body in /storage/fetch-result.json.",
+  "description": {
+    "en": "Demonstrates outbound HTTP requests from WASM plugins in Go, Rust and JavaScript against llm-prof.de.",
+    "de": "Demonstriert ausgehende HTTP-Requests aus WASM-Plugins in Go, Rust und JavaScript gegen llm-prof.de."
+  },
   "capabilities": [
     {
       "id": "ping",
@@ -18,9 +21,15 @@
       "execution_timeout_ms": 3000
     }
   ],
-  "allowed_hosts": ["llm-prof.de"],
+  "allowed_hosts": [
+    "llm-prof.de"
+  ],
   "lifecycle": {
     "on_install": "on_install",
     "on_uninstall": "on_uninstall"
+  },
+  "display_name": {
+    "en": "Requesting External Data Example",
+    "de": "Externe-Daten-Beispiel"
   }
 }
