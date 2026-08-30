@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "pluginApiVersionRequirement": ">=1.0.0",
   "author": "LLMProf",
-  "description": "Demonstrates all 4 lifecycle hooks (on_install, on_before_upgrade, on_after_upgrade, on_uninstall) by appending timestamped entries to /storage/lifecycle.log",
+  "description": {
+    "en": "Demonstrates all plugin lifecycle hooks by logging lifecycle events to storage.",
+    "de": "Demonstriert alle Plugin-Lifecycle-Hooks durch Protokollierung von Lifecycle-Ereignissen im Storage."
+  },
   "capabilities": [
     {
       "id": "ping",
@@ -18,5 +21,9 @@
     "on_before_upgrade": "on_before_upgrade",
     "on_after_upgrade": "on_after_upgrade",
     "on_uninstall": "on_uninstall"
+  },
+  "display_name": {
+    "en": "Lifecycle Hooks Example",
+    "de": "Lifecycle-Hooks-Beispiel"
   }
 }
