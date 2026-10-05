@@ -165,9 +165,39 @@ func storageRead(filename string) ([]byte, error) {
 
 // run is the exported capability function. The host invokes it when the
 // capability declared in manifest.json is triggered. The input format depends
-// on the capability type (tool, command).
+// on the capability type (tool, command, student_support).
 //
 // Rename this function and update manifest.json "execute" to match.
+//
+// IMPORTANT (tool capabilities): the input contract is {"mode", "arguments"} —
+//
+//	{"mode":"define"}                      → {mode, name, description, parameters}
+//	{"mode":"execute","arguments":{...}}   → {mode, result:{content, ui?}}
+//
+// result.content is mandatory and non-empty. There is no success:false error
+// convention on the wire: if you reject input, return the error message AS
+// the content string — the LLM reads it and can recover. A
+// {result:{success:false,error:...}} without content is discarded by the host.
+// parameters needs at least one property; cast empty maps to objects
+// ({} not []). Optional extras: result.ui.sources[] for document attribution
+// and result.ui.applet_id to trigger a follow-up mode:"applet" call for
+// rendering HTML in the chat (handle that mode in your dispatch).
+//
+// IMPORTANT (student_support capabilities): input is {"locale":"en"} and the
+// output is a strictly validated single object — exactly
+// {name, description, icon, prompt}: name ≤ 40 chars, description ≤ 100
+// chars, prompt ≤ 10000 chars (localized per the requested locale), icon is
+// an IconType enum case name (e.g. "ChalkboardTeacher"). additionalProperties
+// are forbidden — do not return extra keys (title, mode, locale, success, ...).
+//
+// The host dispatches purely on the manifest: it calls the exported function
+// named in capabilities[].execute and never routes by capability type. Use
+// one dedicated export per capability and share logic through a common
+// internal function, not a shared export.
+//
+// NOTE: this template declares a "command" capability, so returning an error
+// object is fine. If you declare a "tool" capability instead, the error path
+// must return {mode:"execute", result:{content:"<error message>"}}.
 //
 //go:wasmexport run
 func run() int32 {
@@ -197,6 +227,7 @@ func run() int32 {
 	//
 	// pluginConfig contains the installation's configuration values as
 	// defined by the plugin's configuration_schema in manifest.json.
+	// Configuration is never declared as tool parameters.
 
 	// --- 3. Send output back to the host ----------------------------------
 	result := map[string]any{

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+docker run --rm -v "$(pwd)":/workspace -w /workspace rust:latest sh -c 'rustup target add wasm32-wasip1 && rm -f target/wasm32-wasip1/release/*.wasm && cargo build --release --target wasm32-wasip1 && cp target/wasm32-wasip1/release/*.wasm plugin.wasm'
+echo "Built: $(pwd)/plugin.wasm"

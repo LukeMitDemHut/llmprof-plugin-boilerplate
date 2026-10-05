@@ -36,6 +36,34 @@ mod storage;
 /// in return.
 ///
 /// Rename this function and update `manifest.json` `"execute"` to match.
+///
+/// # Capability input contracts
+///
+/// - `tool`: the host calls your export twice per usage
+///   `{"mode":"define"}` → `{mode, name, description, parameters}` and
+///   `{"mode":"execute","arguments":{...}}` → `{mode, result:{content, ui?}}`.
+///   `result.content` is mandatory and non-empty — there is no
+///   `success:false` error convention on the wire, so if you reject input,
+///   return the error message AS the content string (the LLM reads it and can
+///   recover). `parameters` needs at least one property; cast empty maps to
+///   objects (`{}` not `[]`). Optional extras: `result.ui.sources[]` for
+///   document attribution and `result.ui.applet_id` to trigger a follow-up
+///   `mode:"applet"` call for rendering HTML in the chat.
+/// - `command`: open object `{"param": "value", ...}`.
+/// - `student_support`: input is `{"locale":"en"}`; the output is a strictly
+///   validated single object — exactly `{name, description, icon, prompt}`:
+///   name ≤ 40 chars, description ≤ 100 chars, prompt ≤ 10000 chars
+///   (localized per the requested locale), icon is an `IconType` enum case
+///   name (e.g. `"ChalkboardTeacher"`). Additional properties are forbidden.
+///
+/// The host dispatches purely on the manifest — it calls the exported
+/// function named in `capabilities[].execute` and never routes by capability
+/// type. Use one dedicated export per capability and share logic through a
+/// common internal function, not a shared export.
+///
+/// NOTE: this template declares a "command" capability, so returning an error
+/// object is fine. If you declare a "tool" capability instead, the error path
+/// must return `{"mode":"execute","result":{"content":"<error message>"}}`.
 #[plugin_fn]
 pub fn run(envelope: Json<Value>) -> FnResult<String> {
     host_capability::log_info("run: entry point called");
@@ -60,6 +88,7 @@ pub fn run(envelope: Json<Value>) -> FnResult<String> {
     //
     // plugin_config contains the installation's configuration values as
     // defined by the plugin's configuration_schema in manifest.json.
+    // Configuration is never declared as tool parameters.
     //
     // Available helpers:
     //   host_capability::log_debug(msg)    — log at debug level

@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "pluginApiVersionRequirement": ">=1.0.0",
   "author": "Your Name",
-  "description": "A Rust plugin template for LLMProf.",
+  "display_name": { "en": "Boilerplate Rust", "de": "Boilerplate Rust" },
+  "description": {
+    "en": "A Rust plugin template for LLMProf.",
+    "de": "Eine Rust-Plugin-Vorlage für LLMProf."
+  },
   "capabilities": [
     {
       "id": "run",

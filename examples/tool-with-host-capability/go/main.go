@@ -14,7 +14,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -83,9 +82,16 @@ func requestCapability(capabilityName string, inputObj any) string {
 
 // Summarize is the single WASM-exported entry point invoked by the host.
 //
+// Tool capabilities have no success:false error convention on the wire:
+// result.content is mandatory and non-empty, so ALL error paths (including
+// bad input) return the error message AS the content string — the LLM reads
+// it and can recover (e.g. retry with valid parameters). A
+// {result:{success:false,error:...}} without content would be discarded by
+// the host and replaced with a generic "returned no valid result payload".
+//
 // Return value convention:
 //   0 = success (output written via pdk.OutputString)
-//   1 = error   (error message set via pdk.SetError)
+//   1 = hard failure before any output could be produced
 //
 //go:wasmexport summarize
 func Summarize() int32 {
@@ -104,11 +110,13 @@ func Summarize() int32 {
 	}
 	if err := json.Unmarshal(inputBytes, &envelope); err != nil {
 		logError(fmt.Sprintf("failed to parse input JSON: %v", err))
-		pdk.SetError(errors.New("invalid JSON input from host"))
-		return 1
+		return outputToolError(fmt.Sprintf("Invalid request: input is not valid JSON (%v).", err))
 	}
 
 	inputData := envelope.Input
+	if inputData == nil {
+		inputData = map[string]any{}
+	}
 
 	// Log the raw input keys for debugging (without values to avoid leaking secrets)
 	inputKeys := make([]string, 0, len(inputData))
@@ -128,9 +136,27 @@ func Summarize() int32 {
 		return handleExecute(inputData)
 	default:
 		logError(fmt.Sprintf("unknown mode: %q (expected \"define\" or \"execute\")", mode))
-		pdk.SetError(fmt.Errorf("unknown mode: %q (expected \"define\" or \"execute\")", mode))
+		return outputToolError(fmt.Sprintf("Unknown mode %q (expected \"define\" or \"execute\").", mode))
+	}
+}
+
+// outputToolError writes {mode:"execute", result:{content:"Error: ..."}} to
+// the host and returns 0. This is the correct error path for tool
+// capabilities: the error text travels in the mandatory content field.
+func outputToolError(message string) int32 {
+	result := map[string]any{
+		"mode": "execute",
+		"result": map[string]any{
+			"content": "Error: " + message,
+		},
+	}
+	outputJSON, err := json.Marshal(result)
+	if err != nil {
+		pdk.SetError(fmt.Errorf("failed to marshal error result: %w", err))
 		return 1
 	}
+	pdk.OutputString(string(outputJSON))
+	return 0
 }
 
 // handleDefine returns the tool schema that the LLM uses for function calling.
@@ -172,9 +198,8 @@ func handleExecute(inputData map[string]any) int32 {
 	// Extract the tool arguments and the message activity key.
 	args, _ := inputData["arguments"].(map[string]any)
 	if args == nil {
-		logError("handleExecute: arguments is nil or not a map")
-		pdk.SetError(errors.New("arguments is required and must be an object"))
-		return 1
+		args = map[string]any{}
+		logInfo("handleExecute: arguments missing or not a map — continuing with empty arguments")
 	}
 
 	// Log argument keys (not values — may contain system-provided data)
@@ -205,8 +230,7 @@ func handleExecute(inputData map[string]any) int32 {
 	var modelResponse map[string]any
 	if err := json.Unmarshal([]byte(modelResponseRaw), &modelResponse); err != nil {
 		logError(fmt.Sprintf("handleExecute: failed to parse model response: %v", err))
-		pdk.SetError(fmt.Errorf("failed to parse model response: %w", err))
-		return 1
+		return outputToolError(fmt.Sprintf("The host returned an unparseable model response: %v.", err))
 	}
 	logInfo("handleExecute: model response parsed successfully")
 
@@ -215,14 +239,12 @@ func handleExecute(inputData map[string]any) int32 {
 	logInfo("handleExecute: writing /storage/results.json")
 	if err := os.MkdirAll("/storage", 0o755); err != nil {
 		logError(fmt.Sprintf("handleExecute: failed to create /storage directory: %v", err))
-		pdk.SetError(fmt.Errorf("failed to create /storage directory: %w", err))
-		return 1
+		return outputToolError(fmt.Sprintf("Failed to create storage directory: %v.", err))
 	}
 	storagePath := filepath.Join("/storage", "results.json")
 	if err := os.WriteFile(storagePath, []byte(modelResponseRaw), 0o644); err != nil {
 		logError(fmt.Sprintf("handleExecute: failed to write results.json: %v", err))
-		pdk.SetError(fmt.Errorf("failed to write results.json: %w", err))
-		return 1
+		return outputToolError(fmt.Sprintf("Failed to write results.json: %v.", err))
 	}
 	logInfo("handleExecute: results.json written successfully")
 
@@ -259,8 +281,7 @@ func handleExecute(inputData map[string]any) int32 {
 	outputJSON, err := json.Marshal(result)
 	if err != nil {
 		logError(fmt.Sprintf("handleExecute: failed to marshal result: %v", err))
-		pdk.SetError(fmt.Errorf("failed to marshal result: %w", err))
-		return 1
+		return outputToolError(fmt.Sprintf("Failed to marshal result: %v.", err))
 	}
 	logInfo(fmt.Sprintf("handleExecute: returning success (output size: %d bytes)", len(outputJSON)))
 	pdk.OutputString(string(outputJSON))

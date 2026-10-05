@@ -1,0 +1,21 @@
+{
+  "name": "student-support-strategy",
+  "version": "1.0.0",
+  "pluginApiVersionRequirement": ">=1.0.0",
+  "author": "LLMProf",
+  "display_name": { "en": "Student Support Strategy Example", "de": "Lernunterstützung – Beispiel" },
+  "description": {
+    "en": "Example student_support capability that returns a strictly validated learning-mode strategy (name, description, icon, prompt) localized per the requested locale.",
+    "de": "Beispiel für eine student_support-Fähigkeit, die eine streng validierte Lernmodus-Strategie (name, description, icon, prompt) je nach angefragter Sprache liefert."
+  },
+  "capabilities": [
+    {
+      "id": "learning_style_coach",
+      "type": "student_support",
+      "execute": "student_support_strategy",
+      "execution_timeout_ms": 5000
+    }
+  ],
+  "host_capabilities": [],
+  "configuration_schema": {}
+}

@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "pluginApiVersionRequirement": ">=1.0.0",
   "author": "LLMProf",
-  "description": "Example tool plugin that calls request_system_model, saves to /storage, and reports progress via add_message_activity.",
+  "description": {
+    "en": "Example tool plugin that calls request_system_model, saves to /storage, and reports progress via add_message_activity.",
+    "de": "Beispiel-Tool-Plugin, das request_system_model aufruft, in /storage speichert und Fortschritt über add_message_activity meldet."
+  },
   "capabilities": [
     {
       "id": "summarize",
@@ -27,5 +30,9 @@
     }
   ],
   "configuration_schema": {},
-  "allowed_hosts": []
+  "allowed_hosts": [],
+  "display_name": {
+    "en": "Tool with Host Capability Example",
+    "de": "Tool mit Host-Fähigkeit – Beispiel"
+  }
 }

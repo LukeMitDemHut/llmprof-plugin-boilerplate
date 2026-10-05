@@ -112,8 +112,15 @@ fn log_error(message: &str) {
 /// Main plugin entry point, exported via the `#[plugin_fn]` macro.
 ///
 /// The host passes a JSON envelope `{"input": {...}, "plugin_config": {...}}`
-/// and expects a JSON string in return. Errors are reported back to the host
-/// with a non-zero exit code via `WithReturnCode`.
+/// and expects a JSON string in return.
+///
+/// Tool capabilities have no `success:false` error convention on the wire:
+/// `result.content` is mandatory and non-empty, so ALL error paths (including
+/// bad input and unknown modes) return the error message AS the content
+/// string — the LLM reads it and can recover (e.g. retry with valid
+/// parameters). A `{"success":false,"error":...}` without content would be
+/// discarded by the host and replaced with a generic "returned no valid
+/// result payload".
 #[plugin_fn]
 pub fn summarize(envelope: Json<Value>) -> FnResult<String> {
     log_info("summarize entry point called");
@@ -195,26 +202,39 @@ pub fn summarize(envelope: Json<Value>) -> FnResult<String> {
                 }
             });
 
-            let model_response =
-                request_capability("request_system_model", &model_input).map_err(|e| {
-                    Error::msg(format!("request_system_model failed: {e}"))
-                })?;
+            let model_response = match request_capability("request_system_model", &model_input)
+            {
+                Ok(v) => v,
+                Err(e) => {
+                    // Map capability errors into error-as-content results so
+                    // the message reaches the LLM/user.
+                    return tool_error_response(&format!(
+                        "request_system_model failed: {e}"
+                    ));
+                }
+            };
 
             log_info("handleExecute: model response parsed successfully");
 
             // 2. Save the result to /storage/results.json.
             //    Rust plugins run under WASI and have native filesystem
             //    access via std::fs — no host functions needed.
-            let response_str = serde_json::to_string(&model_response).map_err(|e| {
-                Error::msg(format!("Failed to serialize model response: {e}"))
-            })?;
+            let response_str = match serde_json::to_string(&model_response) {
+                Ok(s) => s,
+                Err(e) => {
+                    return tool_error_response(&format!(
+                        "Failed to serialize model response: {e}"
+                    ));
+                }
+            };
 
             log_info("handleExecute: writing /storage/results.json");
-            fs::create_dir_all("/storage")
-                .map_err(|e| Error::msg(format!("Failed to create /storage: {e}")))?;
-
-            fs::write("/storage/results.json", &response_str)
-                .map_err(|e| Error::msg(format!("Failed to write results.json: {e}")))?;
+            if let Err(e) = fs::create_dir_all("/storage") {
+                return tool_error_response(&format!("Failed to create /storage: {e}"));
+            }
+            if let Err(e) = fs::write("/storage/results.json", &response_str) {
+                return tool_error_response(&format!("Failed to write results.json: {e}"));
+            }
 
             log_info("handleExecute: results.json written successfully");
 
@@ -254,21 +274,66 @@ pub fn summarize(envelope: Json<Value>) -> FnResult<String> {
                 }
             });
 
-            let result_str = serde_json::to_string(&result).map_err(|e| {
-                Error::msg(format!("Failed to serialize result: {e}"))
-            })?;
+            let result_str = match serde_json::to_string(&result) {
+                Ok(s) => s,
+                Err(e) => {
+                    return tool_error_response(&format!(
+                        "Failed to serialize result: {e}"
+                    ));
+                }
+            };
 
             log_info("handleExecute: returning success");
             Ok(result_str)
         }
 
-        // --- Unknown mode ---------------------------------------------------
+        // --- Unknown mode (and all other errors) -----------------------------
+        //
+        // Tool error path: wrap the error message as the mandatory content
+        // field instead of failing the export — see the doc comment above.
         _ => {
-            log_error(&format!(
-                "unknown mode: \"{}\" (expected \"define\" or \"execute\")",
+            let message = format!(
+                "Unknown mode '{}' (expected 'define' or 'execute').",
                 mode
-            ));
-            let err = Error::msg(format!("Unknown mode: '{mode}'"));
+            );
+            log_error(&message);
+            let result = serde_json::json!({
+                "mode": "execute",
+                "result": {
+                    "content": format!("Error: {message}")
+                }
+            });
+            match serde_json::to_string(&result) {
+                Ok(s) => Ok(s),
+                Err(e) => {
+                    // Serialization of a trivial JSON literal should never
+                    // fail; this is a hard failure, not a tool error.
+                    let err =
+                        Error::msg(format!("Failed to serialize error result: {e}"));
+                    Err(WithReturnCode::new(err, 1))
+                }
+            }
+        }
+    }
+}
+
+/// Build the tool error response `{mode:"execute", result:{content:...}}`.
+///
+/// The error text travels in the mandatory `content` field. Returns a
+/// serialized JSON string, or a hard `WithReturnCode` error only if the
+/// trivial serialization fails (which should never happen).
+#[allow(dead_code)]
+fn tool_error_response(message: &str) -> Result<String, WithReturnCode<Error>> {
+    let result = serde_json::json!({
+        "mode": "execute",
+        "result": {
+            "content": format!("Error: {message}")
+        }
+    });
+    match serde_json::to_string(&result) {
+        Ok(s) => Ok(s),
+        Err(e) => {
+            let err = Error::msg(format!("Failed to serialize error result: {e}"));
             Err(WithReturnCode::new(err, 1))
         }
     }

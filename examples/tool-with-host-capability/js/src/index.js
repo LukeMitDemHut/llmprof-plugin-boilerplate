@@ -274,7 +274,21 @@ function summarize() {
         result = executeTool(input);
         break;
       default:
-        throw new Error("Unknown mode: " + input.mode);
+        // Tool error path: result.content is mandatory — there is no
+        // success:false error convention on the wire. Returning the error
+        // message as the content string lets the LLM read it and recover
+        // (e.g. retry with valid parameters). A content-less error object
+        // would be discarded by the host.
+        result = {
+          mode: "execute",
+          result: {
+            content:
+              "Unknown mode '" +
+              input.mode +
+              "' (expected 'define' or 'execute').",
+          },
+        };
+        break;
     }
 
     // Send the JSON response back to the host.
@@ -285,14 +299,20 @@ function summarize() {
   } catch (err) {
     logError("summarize error: " + (err.message || String(err)));
 
-    // On error, return a JSON error object so the host can surface it.
+    // Tool error path: return the error AS the mandatory content string so
+    // the message reaches the LLM/user instead of being discarded and
+    // replaced with a generic "returned no valid result payload".
     Host.outputString(
       JSON.stringify({
-        error: err.message || String(err),
+        mode: "execute",
+        result: {
+          content: "Error: " + (err.message || String(err)),
+        },
       }),
     );
-    // Re-throw so the Extism runtime records a non-zero exit.
-    throw err;
+    // Exit code 0: the tool completed by returning an error-as-content
+    // result, which is the correct contract for tool capabilities.
+    return 0;
   }
 }
 

@@ -33,9 +33,41 @@
       "description": "Author name or organization.",
       "minLength": 1
     },
+    "display_name": {
+      "type": "object",
+      "description": "Localized display name shown in the plugin store. REQUIRED — missing or empty maps fail the whole provider's listing validation and hide every plugin from that host.",
+      "minProperties": 1,
+      "maxProperties": 10,
+      "propertyNames": {
+        "pattern": "^[a-z]{2}(-[A-Za-z]{2,4})?$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
     "description": {
-      "type": "string",
-      "description": "Human-readable description of the plugin."
+      "description": "Localized plugin description. Plain strings are tolerated by the host (wrapped as {\"en\": <text>}) but users on other locales see the raw text — prefer a localized map.",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Human-readable description of the plugin (treated as English)."
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 10,
+          "propertyNames": {
+            "pattern": "^[a-z]{2}(-[A-Za-z]{2,4})?$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      ]
     },
     "changelog": {
       "type": "string",
@@ -43,7 +75,8 @@
     },
     "capabilities": {
       "type": "array",
-      "description": "Capabilities exposed by this plugin.",
+      "description": "Capabilities exposed by this plugin. Capability ids must be unique.",
+      "uniqueItems": true,
       "items": {
         "type": "object",
         "required": ["id", "type", "execute", "execution_timeout_ms"],
@@ -60,13 +93,13 @@
           },
           "execute": {
             "type": "string",
-            "description": "Name of the exported WASM function to call when this capability is invoked."
+            "description": "Name of the exported WASM function to call when this capability is invoked. The host dispatches purely on this field — use one dedicated export per capability instead of routing by capability type inside a shared export."
           },
           "execution_timeout_ms": {
             "type": "integer",
-            "description": "Maximum execution time in milliseconds. Must not exceed 30000 (MAX_EXECUTION_MS).",
+            "description": "Required and positive. Ceiling is PLUGIN_MAX_EXECUTION_MS (default 300000).",
             "minimum": 1,
-            "maximum": 30000
+            "maximum": 300000
           }
         },
         "additionalProperties": false
@@ -93,9 +126,9 @@
           },
           "execution_timeout_ms": {
             "type": "integer",
-            "description": "Maximum execution time in milliseconds for the host capability call.",
+            "description": "Maximum execution time in milliseconds for the host capability call. Ceiling is PLUGIN_MAX_EXECUTION_MS (default 300000).",
             "minimum": 1,
-            "maximum": 30000
+            "maximum": 300000
           }
         },
         "additionalProperties": false
@@ -103,7 +136,7 @@
     },
     "configuration_schema": {
       "type": "object",
-      "description": "JSON Schema describing the plugin's configuration options. Users provide configuration matching this schema when installing the plugin."
+      "description": "JSON Schema describing the plugin's configuration options (validated and delivered to the plugin as plugin_config, never as tool parameters). The empty object {} means 'accept any configuration object'."
     },
     "allowed_hosts": {
       "type": "array",

@@ -141,12 +141,49 @@ function resolveMessage() {
   return requestCapability("resolve_message", {});
 }
 
+/**
+ * Request a completion from the system-configured LLM model via the
+ * `request_system_model` host capability.
+ *
+ * NOTE: `request` is a plain prompt string — the host builds the messages
+ * array internally as a single user message. Pass a `messages` array instead
+ * for multi-turn control. Calls additionally require a real execution token
+ * (i.e. a chat-driven invocation or the
+ * `app:execute-plugin-capability --message-id` test route), and the
+ * capability must be declared in the manifest's host_capabilities.
+ *
+ * @param {string} request - The plain-text prompt for the model.
+ * @param {object} [schema] - Optional JSON Schema for structured output
+ *                            (also accepted by the host as `response_schema`).
+ * @returns {object}       - The host's JSON response.
+ */
+function requestSystemModel(request, schema) {
+  var input = { request: request };
+  if (schema) {
+    input.schema = schema;
+  }
+  return requestCapability("request_system_model", input);
+}
+
+/**
+ * Request the user's i18n / locale preference via the `request_user_i18n`
+ * host capability.
+ *
+ * @returns {object} The host's JSON response containing
+ *                   `{locale: "en"}` or `{locale: null}`.
+ */
+function requestUserI18n() {
+  return requestCapability("request_user_i18n", {});
+}
+
 module.exports = {
   callHostCapability,
   requestCapability,
   addMessageActivity,
   resolveContext,
   resolveMessage,
+  requestSystemModel,
+  requestUserI18n,
   logHost,
   logDebug,
   logInfo,

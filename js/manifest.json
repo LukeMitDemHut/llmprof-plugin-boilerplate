@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "pluginApiVersionRequirement": ">=1.0.0",
   "author": "Your Name",
-  "description": "A JavaScript plugin template for LLMProf.",
+  "display_name": { "en": "Boilerplate JS", "de": "Boilerplate JS" },
+  "description": {
+    "en": "A JavaScript plugin template for LLMProf.",
+    "de": "Eine JavaScript-Plugin-Vorlage für LLMProf."
+  },
   "capabilities": [
     {
       "id": "run",

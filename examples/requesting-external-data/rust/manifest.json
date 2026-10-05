@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "pluginApiVersionRequirement": ">=1.0.0",
   "author": "LLMProf",
-  "description": "Demonstrates outbound HTTP requests during the on_install lifecycle hook. Fetches https://llm-prof.de/ and stores the HTTP status and a snippet of the response body in /storage/fetch-result.json.",
+  "description": {
+    "en": "Demonstrates outbound HTTP requests during the on_install lifecycle hook. Fetches https://llm-prof.de/ and stores the HTTP status and a snippet of the response body in /storage/fetch-result.json.",
+    "de": "Demonstriert ausgehende HTTP-Anfragen im on_install-Lifecycle-Hook. Ruft https://llm-prof.de/ ab und speichert den HTTP-Status und einen Auszug des Antwortkörpers in /storage/fetch-result.json."
+  },
   "capabilities": [
     {
       "id": "ping",
@@ -18,9 +21,15 @@
       "execution_timeout_ms": 3000
     }
   ],
-  "allowed_hosts": ["llm-prof.de"],
+  "allowed_hosts": [
+    "llm-prof.de"
+  ],
   "lifecycle": {
     "on_install": "on_install",
     "on_uninstall": "on_uninstall"
+  },
+  "display_name": {
+    "en": "Requesting External Data Example",
+    "de": "Externen Daten anfragen – Beispiel"
   }
 }

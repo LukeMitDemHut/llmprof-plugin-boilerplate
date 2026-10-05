@@ -3,6 +3,19 @@
   "$id": "https://llmprof/plugins/host-capabilities.json",
   "title": "LLMProf Host Capabilities Reference",
   "description": "Reference document listing all host capabilities available to plugins via call_host_capability, including their input/output schemas and scope restrictions.",
+  "call_rules": {
+    "manifest_required": "Every host capability a plugin calls must be declared in manifest.json under host_capabilities (with a positive execution_timeout_ms). Undeclared calls return {\"error\": \"capability not allowed\"} immediately.",
+    "available_ids": [
+      "log",
+      "add_message_activity",
+      "resolve_context",
+      "resolve_message",
+      "request_user_i18n",
+      "request_system_model"
+    ],
+    "always_available_storage": "The storage host functions read_file, write_file, list_files and delete_file are always available and do NOT need manifest entries.",
+    "execution_token": "request_system_model calls additionally require a real execution token — a chat-driven invocation, or the app:execute-plugin-capability --message-id test route."
+  },
   "capabilities": {
     "log": {
       "description": "Write a log entry to the LLMProf application log. Best-effort: the host ignores failures so logging never breaks plugin execution.",

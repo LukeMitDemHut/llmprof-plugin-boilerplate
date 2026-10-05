@@ -11,7 +11,41 @@
  *
  * getInput() unwraps the "input" object; getPluginConfig() unwraps
  * "plugin_config" (the installation's configuration values, kept separate
- * from input).
+ * from input — never declare configuration as tool parameters).
+ *
+ * The input shape depends on the capability type declared in manifest.json:
+ *
+ *   tool:              the host calls your export twice per usage:
+ *                        {"mode":"define"}                    →
+ *                            {mode, name, description, parameters}
+ *                        {"mode":"execute","arguments":{...}} →
+ *                            {mode, result:{content, ui?}}
+ *                      - result.content is MANDATORY and non-empty. There is
+ *                        no success:false error convention on the wire: if
+ *                        you reject input, return the error message AS the
+ *                        content string (the LLM reads it and can recover).
+ *                        A {result:{success:false,error:...}} without
+ *                        content is discarded by the host.
+ *                      - parameters needs at least one property; cast empty
+ *                        maps to objects ({} not []).
+ *                      - Optional: result.ui.sources[] for document
+ *                        attribution, result.ui.applet_id to trigger a
+ *                        follow-up mode:"applet" call for rendering HTML in
+ *                        the chat (handle that mode in your dispatch).
+ *   command:           {"param": "value", ...}  (open object)
+ *   student_support:   {"locale": "en"} →
+ *                        exactly {name, description, icon, prompt}
+ *                      - name ≤ 40 chars, description ≤ 100 chars,
+ *                        prompt ≤ 10000 chars (localized per the requested
+ *                        locale), icon is an IconType enum case name
+ *                        (e.g. "ChalkboardTeacher").
+ *                      - additionalProperties:false — do NOT return extra
+ *                        keys (title, mode, locale, success, ...).
+ *
+ * IMPORTANT: the host dispatches purely on the manifest — it calls the
+ * exported function named in capabilities[].execute and never routes by
+ * capability type. Use one dedicated export per capability (share logic via
+ * a common internal function, not a shared export).
  *
  * Plugins may also declare lifecycle hooks (on_install, on_before_upgrade,
  * on_after_upgrade, on_uninstall).
@@ -41,6 +75,11 @@ const storage = require("./storage");
  *
  * Rename this function and update manifest.json "execute" to match.
  *
+ * NOTE: this template declares a "command" capability, so returning an error
+ * object is fine. If you declare a "tool" capability instead, the error path
+ * must return {mode:"execute", result:{content:"<error message>"}} — tool
+ * results without a non-empty content field are discarded by the host.
+ *
  * @returns {number} 0 on success (convention for Extism PDK entry points).
  */
 function run() {
@@ -66,6 +105,9 @@ function run() {
     //   hostCapability.addMessageActivity(activity) — add message activity
     //   hostCapability.resolveContext() — resolve current context
     //   hostCapability.resolveMessage() — resolve current message
+    //   hostCapability.requestSystemModel(request, schema) — ask the system LLM
+    //     (request is a plain prompt string; needs manifest declaration + execution token)
+    //   hostCapability.requestUserI18n() — get the user's locale
     //   storage.readFile(filename)    — read a file from /storage
     //   storage.writeFile(filename, content) — write a file to /storage
     //   storage.listFiles(path)       — list files in /storage

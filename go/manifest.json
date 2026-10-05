@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "pluginApiVersionRequirement": ">=1.0.0",
   "author": "Your Name",
-  "description": "A Go plugin template for LLMProf.",
+  "display_name": { "en": "Boilerplate Go", "de": "Boilerplate Go" },
+  "description": {
+    "en": "A Go plugin template for LLMProf.",
+    "de": "Eine Go-Plugin-Vorlage für LLMProf."
+  },
   "capabilities": [
     {
       "id": "run",
